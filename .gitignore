@@ -1,0 +1,18 @@
+# Backend
+__pycache__/
+*.py[cod]
+*$py.class
+venv/
+.env
+chroma_db/
+
+# Frontend
+node_modules/
+dist/
+.npm-cache/
+.DS_Store
+.env.local
+
+# General
+.vscode/
+.idea/
