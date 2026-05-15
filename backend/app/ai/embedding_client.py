@@ -4,11 +4,18 @@ from sentence_transformers import SentenceTransformer
 
 class EmbeddingClient:
     def __init__(self):
-        model_name = os.getenv("EMBEDDING_MODEL", "sentence-transformers/all-MiniLM-L6-v2")
-        self.model = SentenceTransformer(model_name, device="cpu")
-        # Probe dimension once
-        test_vec = self.model.encode(["dimension probe"], normalize_embeddings=True)
-        self.dim = int(test_vec.shape[1])
+        self.model_name = os.getenv("EMBEDDING_MODEL", "sentence-transformers/all-MiniLM-L6-v2")
+        self.cache_folder = os.path.join(os.getcwd(), "model_cache")
+        self._model = None
+        # all-MiniLM-L6-v2 uses 384 dimensions. Hardcoding avoids the startup probe.
+        self.dim = int(os.getenv("EMBEDDING_DIM", "384"))
+
+    @property
+    def model(self):
+        if self._model is None:
+            print(f"[EMBEDDING] Loading model {self.model_name} from {self.cache_folder}...", flush=True)
+            self._model = SentenceTransformer(self.model_name, device="cpu", cache_folder=self.cache_folder)
+        return self._model
 
     def embed(self, text: str):
         if not isinstance(text, str):
