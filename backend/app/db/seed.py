@@ -175,20 +175,23 @@ async def seed_data():
         vector_service.clear_collection()
     except Exception as e:
         print(f"Error clearing collection: {str(e)}")
-    for item in initial_ingredients:
-        print(f"Adding {item['name']}...")
-        try:
-            vector_service.add_ingredient(
-                name=item["name"],
-                description=item["description"],
-                category=item["category"],
-                metadata=item["metadata"]
-            )
-            print(f"Successfully added {item['name']}. Waiting 3 seconds for rate limits...")
-            await asyncio.sleep(3) # Delay to avoid 429 errors
-        except Exception as e:
-            print(f"Error adding {item['name']}: {str(e)}")
-            await asyncio.sleep(5) # Longer wait on error
+    try:
+        print(f"Adding {len(initial_ingredients)} curated items in batch...")
+        vector_service.add_ingredients_batch(initial_ingredients)
+        print("Curated items added.")
+    except Exception as e:
+        print(f"Batch add failed, falling back to single inserts: {e}")
+        for item in initial_ingredients:
+            print(f"Adding {item['name']}...")
+            try:
+                vector_service.add_ingredient(
+                    name=item["name"],
+                    description=item["description"],
+                    category=item["category"],
+                    metadata=item["metadata"]
+                )
+            except Exception as se:
+                print(f"Error adding {item['name']}: {str(se)}")
     print("Seeding complete.")
 
 if __name__ == "__main__":

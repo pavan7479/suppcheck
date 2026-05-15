@@ -22,9 +22,9 @@ We integrated the **NIH Dietary Supplement Label Database (DSLD)**, the gold sta
 - Performed frequentist analysis to sort ingredients by their occurrence on product labels.
 - Resulted in `unique_ingredients.txt` — a rarity-ranked index of the global supplement market.
 
-### Phase C: Local Vectorization (No API Rate Limits)
-- Created `seed_dsld_bulk.py` to vectorize the Top 500 ingredients.
-- **Embedding**: Local `sentence-transformers/all-MiniLM-L6-v2` (384-dim) — no cloud API needed, no rate limits.
+### Phase C: Cloud Embeddings (Gemini)
+- Created `seed_dsld_bulk.py` to build batches and upsert the Top ~500 ingredients efficiently.
+- **Embedding**: Gemini `models/gemini-embedding-001` (3072-dim) — with in-process caching, conservative rate limiting, retry with backoff, and a small circuit breaker to protect quotas.
 - **Enrichment**: Category index built from DSLD metadata; name-specific overrides for common ingredients (MSM, DIM, Stinging Nettle, Glucuronolactone).
 - **Curated Layer**: 15 hand-enriched ingredients preserved with detailed descriptions, benefits, and risk notes.
 

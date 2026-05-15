@@ -6,13 +6,13 @@ SuppCheck AI is a production-quality platform built with FastAPI and React that 
 - **AI Ingredient Extraction**: Converts unstructured label text into structured JSON with deterministic regex fallback.
 - **Risk Analysis**: AI-powered detection of excessive dosages, stacking risks, and problematic combinations.
 - **Claim Compliance**: Flags potentially misleading or prohibited marketing claims (FDA/FTC style).
-- **Semantic Explorer**: Meaning-based ingredient search using local embeddings + ChromaDB with intent-aware boosting.
+- **Semantic Explorer**: Meaning-based ingredient search using Gemini embeddings + ChromaDB with intent-aware boosting.
 - **Modern UI**: Tabbed dashboard (Analyze / Search) built with TailwindCSS and Lucide icons.
 
 ## Tech Stack
-- **Backend**: Python 3.10+, FastAPI, Pydantic, ChromaDB, sentence-transformers.
+- **Backend**: Python 3.10+, FastAPI, Pydantic, ChromaDB, Gemini embeddings.
 - **Frontend**: React 18, Vite, TailwindCSS, Lucide Icons, axios.
-- **AI**: Google Gemini Flash-Lite (`gemini-3.1-flash-lite`), local `all-MiniLM-L6-v2` embeddings.
+- **AI**: Google Gemini Flash-Lite (`gemini-3.1-flash-lite`), Gemini embeddings (`models/gemini-embedding-001`).
 
 ## Setup Instructions
 
@@ -28,7 +28,8 @@ SuppCheck AI is a production-quality platform built with FastAPI and React that 
    ```
 2. Create and configure your `.env` file:
    ```env
-   GOOGLE_API_KEY=your_key_here
+   GOOGLE_API_KEY=your_key_here  # or GEMINI_API_KEY
+   GEMINI_EMBED_MODEL=models/gemini-embedding-001
    CHROMA_DB_PATH=./chroma_db
    SEARCH_MIN_SIM=0.35
    PORT=8000
@@ -38,7 +39,7 @@ SuppCheck AI is a production-quality platform built with FastAPI and React that 
    ```bash
    pip install -r requirements.txt
    ```
-4. Seed the ingredient database:
+4. Seed the ingredient database (optional; can be done post-deploy in batches):
    ```bash
    # Curated enriched ingredients (15 hand-written entries)
    python -m app.db.seed

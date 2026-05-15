@@ -53,7 +53,7 @@ Analyzes a supplement formulation using Gemini AI + vector KB grounding.
 ### 2. Semantic Ingredient Search
 `GET /search`
 
-Searches for ingredients based on semantic meaning using local embeddings + ChromaDB.
+Searches for ingredients based on semantic meaning using Gemini embeddings + ChromaDB.
 
 **Query Parameters:**
 - `q`: Search query (e.g., "ingredients for anxiety")

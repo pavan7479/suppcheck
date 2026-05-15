@@ -1,7 +1,7 @@
 # System Architecture - SuppCheck AI
 
 ## Overview
-SuppCheck AI is a production-grade system designed to review supplement and nutraceutical formulations. It leverages Gemini AI for extraction, reasoning, and analysis, and uses a local vector database (ChromaDB) with sentence-transformers for semantic search and retrieval of safety/ingredient data.
+SuppCheck AI is a production-grade system designed to review supplement and nutraceutical formulations. It leverages Gemini AI for extraction, reasoning, and analysis, and uses a local vector database (ChromaDB) with Gemini embeddings for semantic search and retrieval of safety/ingredient data.
 
 ## Component Architecture
 
@@ -18,7 +18,7 @@ SuppCheck AI is a production-grade system designed to review supplement and nutr
 ### 3. AI Pipeline
 - **Extraction Engine**: Gemini Flash-Lite (`gemini-3.1-flash-lite`) for parsing unstructured supplement labels into structured JSON, with deterministic regex fallback.
 - **Reasoning Engine**: Gemini Flash-Lite for generating formulation observations, safety scores, per-ingredient risk statuses, and review summaries.
-- **Embedding Engine**: Local `sentence-transformers/all-MiniLM-L6-v2` (384-dim, CPU) for generating semantic vectors — no cloud embedding API needed.
+- **Embedding Engine**: Gemini embeddings (`models/gemini-embedding-001`, 3072-dim by default) for generating semantic vectors, with automatic fallbacks. Query/document styles are used appropriately.
 
 ### 4. Vector Database (ChromaDB)
 - **Storage**: Persistent local file-based storage at path controlled by `CHROMA_DB_PATH` env var.
@@ -37,9 +37,9 @@ SuppCheck AI is a production-grade system designed to review supplement and nutr
 5. **Response**: Frontend displays the comprehensive report with color-coded risk indicators.
 
 ## Vector Search Flow
-1. **Indexing**: ~500 ingredients (15 curated enriched + ~485 DSLD bulk) are embedded locally and stored in ChromaDB.
+1. **Indexing**: ~500 ingredients (15 curated enriched + ~485 DSLD bulk) are embedded via Gemini (document embeddings) and stored in ChromaDB.
 2. **Querying**: User provides a phrase (e.g., "sleep support").
-3. **Embedding**: The phrase is embedded using local sentence-transformers.
+3. **Embedding**: The phrase is embedded using Gemini (query embeddings).
 4. **Canonicalization**: Query normalized through alias map (e.g., "ascorbic acid" → "Vitamin C").
 5. **Retrieval**: Top K similar ingredients retrieved with intent-aware category boosts.
 6. **Post-processing**: Deduplication by normalized name/aliases, threshold filtering, score capping at 1.0.

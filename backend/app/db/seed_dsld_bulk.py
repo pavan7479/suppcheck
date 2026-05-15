@@ -8,9 +8,13 @@ import pandas as pd
 
 from app.services.vector_service import vector_service
 
-# Paths
-DEFAULT_DATA_DIR = os.path.normpath(os.path.join(os.getcwd(), "..", "data", "raw", "extracted_data", "DSLD-full-database-CSV"))
-UNIQUE_INGS_PATH = os.path.join(os.getcwd(), "unique_ingredients.txt")
+# Paths (prefer repo-relative; allow override via DATA_DIR)
+REPO_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", ".."))
+DEFAULT_DATA_DIR = os.environ.get(
+    "DATA_DIR",
+    os.path.normpath(os.path.join(REPO_ROOT, "data", "raw", "extracted_data", "DSLD-full-database-CSV"))
+)
+UNIQUE_INGS_PATH = os.path.join(REPO_ROOT, "backend", "unique_ingredients.txt")
 
 # Curated items to preserve (do not override if present)
 CURATED_NAMES = {
@@ -218,7 +222,25 @@ def seed_from_dsld(limit: int = 500, data_dir: str = DEFAULT_DATA_DIR):
 
     cat_index = build_category_index(data_dir)
 
+    # Build items then upsert in batches to minimize API calls
+    batch: List[Dict] = []
     added = 0
+    def flush_batch():
+        nonlocal batch, added
+        if not batch:
+            return
+        for attempt in range(3):
+            try:
+                vector_service.add_ingredients_batch(batch)
+                added += len(batch)
+                batch = []
+                return
+            except Exception as e:
+                wait = 2 ** attempt
+                print(f"[DSLDBULK] Batch upsert failed (attempt {attempt+1}), retrying in {wait}s: {e}")
+                import time as _t
+                _t.sleep(wait)
+
     for idx, name in enumerate(top_names, start=1):
         if name in CURATED_NAMES:
             # Preserve curated enriched entries
@@ -250,13 +272,20 @@ def seed_from_dsld(limit: int = 500, data_dir: str = DEFAULT_DATA_DIR):
                 "aliases": aliases,
                 "risk_notes": [],
             }
-            vector_service.add_ingredient(name=name, description=desc, category=simple_cat, metadata=metadata)
-            added += 1
-            if added % 50 == 0:
-                print(f"[DSLDBULK] Indexed {added}/{limit}...", flush=True)
+            batch.append({
+                "name": name,
+                "description": desc,
+                "category": simple_cat,
+                "metadata": metadata,
+            })
+            if len(batch) >= 50:
+                print(f"[DSLDBULK] Upserting batch... (processed ~{idx})")
+                flush_batch()
         except Exception as e:
-            print(f"[DSLDBULK] Failed to index '{name}': {e}")
+            print(f"[DSLDBULK] Failed to prepare '{name}': {e}")
 
+    # Flush remaining
+    flush_batch()
     print(f"[DSLDBULK] Seeding complete. Added {added} items (excluding curated preserved entries).")
 
 

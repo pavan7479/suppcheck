@@ -17,12 +17,13 @@
 - **Goal**: Identify regulatory red flags (FDA/FTC style).
 - **Prompt**: Flags claims implying cure, treatment, or prevention of disease, or those scientifically unsupported.
 
-### 4. Semantic Embedding (Local Sentence Transformers)
-- **Model**: `sentence-transformers/all-MiniLM-L6-v2` (384-dim, CPU).
-- **Config**: Overridable via `EMBEDDING_MODEL` and `EMBEDDING_DIM` env vars.
+### 4. Semantic Embedding (Gemini Embeddings)
+- **Model**: `models/gemini-embedding-001` (3072-dim). Fallbacks supported: `embedding-001`, `text-embedding-004`.
+- **Config**: `GEMINI_API_KEY`, `GEMINI_EMBED_MODEL` (default: `models/gemini-embedding-001`). Dimension auto-inferred (3072) unless `EMBEDDING_DIM` is set.
 - **Usage**:
-  - **Index Time**: Embed combined text of name + category + description + benefits + aliases + risk notes.
-  - **Search Time**: Embed user query, perform cosine similarity search via ChromaDB.
+  - **Index Time (document)**: Embed combined text of name + category + description + benefits + aliases + risk notes using document-style embeddings; upsert to ChromaDB.
+  - **Search Time (query)**: Embed user query using query-style embeddings; perform cosine similarity search via ChromaDB.
+- **Operational safeguards**: lightweight in-memory cache, conservative per-minute rate limiting, retry with backoff, and a small circuit breaker to protect quotas. Startup does not load any local models.
 
 ## Retrieval Flow
 1. **Query**: "ingredients for cognitive enhancement"

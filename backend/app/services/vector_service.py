@@ -80,7 +80,7 @@ class VectorService:
         return []
 
     def _current_dim(self) -> int:
-        return getattr(embedding_client, "dim", int(os.getenv("EMBEDDING_DIM", "384")))
+        return getattr(embedding_client, "dim", int(os.getenv("EMBEDDING_DIM", "768")))
 
     def _ensure_collection(self):
         dim = self._current_dim()
@@ -115,7 +115,10 @@ class VectorService:
         if risk_notes:
             parts.append("Risks: " + "; ".join([str(r) for r in risk_notes]))
         embed_text = ". ".join([p for p in parts if p]).strip()
-        embedding = embedding_client.embed(embed_text)
+        embedding = embedding_client.embed_text(embed_text, kind="document")
+        if not embedding:
+            print(f"[VECTOR] Skipping '{name}' due to embedding failure.", flush=True)
+            return
         
         doc_id = name.lower().replace(" ", "_")
         # Use upsert to avoid duplicate ID errors when re-seeding
@@ -125,6 +128,60 @@ class VectorService:
             documents=[embed_text],
             metadatas=[{**self._flatten_metadata(metadata), "name": name, "category": category, "description": description}],
             ids=[doc_id]
+        )
+
+    def add_ingredients_batch(self, items: list):
+        """Batch upsert ingredients. Each item: {name, description, category, metadata}.
+        Skips items that fail to embed.
+        """
+        if not items:
+            return
+        names = []
+        docs = []
+        metas = []
+        ids = []
+        texts = []
+        for it in items:
+            name = it.get("name") or "Unknown"
+            description = it.get("description") or ""
+            category = it.get("category") or "General"
+            metadata = it.get("metadata") or {}
+            benefits = self._parse_list_field(metadata.get("benefits", []))
+            aliases = self._parse_list_field(metadata.get("aliases", []))
+            risk_notes = self._parse_list_field(metadata.get("risk_notes", []))
+            parts = [name, category, description]
+            if benefits:
+                parts.append("Benefits: " + ", ".join([str(b) for b in benefits]))
+            if aliases:
+                parts.append("Also known as: " + ", ".join([str(a) for a in aliases]))
+            if risk_notes:
+                parts.append("Risks: " + "; ".join([str(r) for r in risk_notes]))
+            embed_text = ". ".join([p for p in parts if p]).strip()
+            texts.append(embed_text)
+            names.append(name)
+            docs.append(embed_text)
+            metas.append({**self._flatten_metadata(metadata), "name": name, "category": category, "description": description})
+            ids.append(name.lower().replace(" ", "_"))
+
+        vectors = embedding_client.embed_batch(texts, kind="document")
+        # Filter out failed ones (empty vectors)
+        final_embs, final_docs, final_metas, final_ids = [], [], [], []
+        for i, v in enumerate(vectors):
+            if v:
+                final_embs.append(v)
+                final_docs.append(docs[i])
+                final_metas.append(metas[i])
+                final_ids.append(ids[i])
+            else:
+                print(f"[VECTOR] Skipping '{names[i]}' due to embedding failure.", flush=True)
+        if not final_embs:
+            return
+        coll = self._ensure_collection()
+        coll.upsert(
+            embeddings=final_embs,
+            documents=final_docs,
+            metadatas=final_metas,
+            ids=final_ids,
         )
 
     def _normalize_name(self, name: str) -> str:
@@ -179,7 +236,10 @@ class VectorService:
         try:
             canonical_query = self._canonicalize(query)
             query_text = canonical_query if canonical_query else query
-            query_embedding = embedding_client.embed(query_text)
+            query_embedding = embedding_client.embed_text(query_text, kind="query")
+            if not query_embedding:
+                print("[SEARCH] Embedding failed for query; returning no results.", flush=True)
+                return []
             
             coll = self._ensure_collection()
             results = coll.query(
