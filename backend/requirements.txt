@@ -12,3 +12,4 @@ scikit-learn==1.5.0
 sentence-transformers==2.7.0
 gunicorn
 torch
+numpy<2.0
